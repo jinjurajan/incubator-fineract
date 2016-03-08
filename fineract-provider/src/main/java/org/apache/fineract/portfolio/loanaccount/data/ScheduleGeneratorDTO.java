@@ -35,11 +35,14 @@ public class ScheduleGeneratorDTO {
     LocalDate recalculateFrom;
     final Long overdurPenaltyWaitPeriod;
     final FloatingRateDTO floatingRateDTO;
+    final int numberOfdays;
+    final boolean isSkipRepaymentOnFirstDayofMonth;
 
     public ScheduleGeneratorDTO(final LoanScheduleGeneratorFactory loanScheduleFactory, final ApplicationCurrency applicationCurrency,
             final LocalDate calculatedRepaymentsStartingFromDate, final HolidayDetailDTO holidayDetailDTO,
             final CalendarInstance calendarInstanceForInterestRecalculation, final CalendarInstance compoundingCalendarInstance,
-            final LocalDate recalculateFrom, final Long overdurPenaltyWaitPeriod, final FloatingRateDTO floatingRateDTO) {
+            final LocalDate recalculateFrom, final Long overdurPenaltyWaitPeriod, final FloatingRateDTO floatingRateDTO,
+            final int numberOfdays, final boolean isSkipRepaymentOnFirstDayofMonth) {
 
         this.loanScheduleFactory = loanScheduleFactory;
         this.applicationCurrency = applicationCurrency;
@@ -50,6 +53,8 @@ public class ScheduleGeneratorDTO {
         this.overdurPenaltyWaitPeriod = overdurPenaltyWaitPeriod;
         this.holidayDetailDTO = holidayDetailDTO;
         this.floatingRateDTO = floatingRateDTO;
+        this.numberOfdays = numberOfdays;
+        this.isSkipRepaymentOnFirstDayofMonth = isSkipRepaymentOnFirstDayofMonth;
     }
 
     public LoanScheduleGeneratorFactory getLoanScheduleFactory() {
@@ -98,6 +103,14 @@ public class ScheduleGeneratorDTO {
 
     public FloatingRateDTO getFloatingRateDTO() {
         return this.floatingRateDTO;
+    }
+
+    public int getNumberOfdays() {
+        return numberOfdays;
+    }
+
+    public boolean isSkipRepaymentOnFirstDayofMonth() {
+        return isSkipRepaymentOnFirstDayofMonth;
     }
 
 }

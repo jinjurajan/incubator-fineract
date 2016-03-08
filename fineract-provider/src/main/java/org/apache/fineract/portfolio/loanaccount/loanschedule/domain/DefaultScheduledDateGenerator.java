@@ -38,7 +38,6 @@ public class DefaultScheduledDateGenerator implements ScheduledDateGenerator {
     public LocalDate getLastRepaymentDate(final LoanApplicationTerms loanApplicationTerms, final HolidayDetailDTO holidayDetailDTO) {
 
         final int numberOfRepayments = loanApplicationTerms.getNumberOfRepayments();
-
         LocalDate lastRepaymentDate = loanApplicationTerms.getExpectedDisbursementDate();
         boolean isFirstRepayment = true;
         for (int repaymentPeriod = 1; repaymentPeriod <= numberOfRepayments; repaymentPeriod++) {
@@ -46,6 +45,7 @@ public class DefaultScheduledDateGenerator implements ScheduledDateGenerator {
             isFirstRepayment = false;
         }
         lastRepaymentDate = adjustRepaymentDate(lastRepaymentDate, loanApplicationTerms, holidayDetailDTO);
+
         return lastRepaymentDate;
     }
 
@@ -70,13 +70,18 @@ public class DefaultScheduledDateGenerator implements ScheduledDateGenerator {
                 // repayment
                 LocalDate seedDate = currentCalendar.getStartDateLocalDate();
                 String reccuringString = currentCalendar.getRecurrence();
-                dueRepaymentPeriodDate = CalendarUtils.getNewRepaymentMeetingDate(reccuringString, seedDate, dueRepaymentPeriodDate,
-                        loanApplicationTerms.getRepaymentEvery(),
-                        CalendarUtils.getMeetingFrequencyFromPeriodFrequencyType(loanApplicationTerms.getLoanTermPeriodFrequencyType()),
-                        holidayDetailDTO.getWorkingDays());
+                dueRepaymentPeriodDate = CalendarUtils
+                        .getNewRepaymentMeetingDate(reccuringString, seedDate, lastRepaymentDate.plusDays(1),
+                                loanApplicationTerms.getRepaymentEvery(),
+                                CalendarUtils.getMeetingFrequencyFromPeriodFrequencyType(
+                                        loanApplicationTerms.getLoanTermPeriodFrequencyType()),
+                                holidayDetailDTO.getWorkingDays(), loanApplicationTerms.isSkipRepaymentOnFirstDayofMonth(),
+                                loanApplicationTerms.getNumberOfdays());
             }
         }
-        return dueRepaymentPeriodDate;
+        LocalDate dueRepaymentPeriodDateTemp = adjustRepaymentDate(dueRepaymentPeriodDate, loanApplicationTerms, holidayDetailDTO);
+
+        return dueRepaymentPeriodDateTemp;
     }
 
     @Override
@@ -89,8 +94,8 @@ public class DefaultScheduledDateGenerator implements ScheduledDateGenerator {
                 loanApplicationTerms.getRepaymentEvery(), adjustedDate, loanApplicationTerms.getNthDay(),
                 loanApplicationTerms.getWeekDayType());
 
-        final RepaymentRescheduleType rescheduleType = RepaymentRescheduleType.fromInt(holidayDetailDTO.getWorkingDays()
-                .getRepaymentReschedulingType());
+        final RepaymentRescheduleType rescheduleType = RepaymentRescheduleType
+                .fromInt(holidayDetailDTO.getWorkingDays().getRepaymentReschedulingType());
 
         /**
          * Fix for https://mifosforge.jira.com/browse/MIFOSX-1357

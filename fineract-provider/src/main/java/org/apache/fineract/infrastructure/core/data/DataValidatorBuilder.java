@@ -621,6 +621,21 @@ public class DataValidatorBuilder {
         this.dataValidationErrors.add(error);
         return this;
     }
+    
+    public DataValidatorBuilder mustBeBlankWhenParameterNotProvided() {
+        
+
+        final StringBuilder validationErrorCode = new StringBuilder("validation.msg.").append(this.resource).append(".")
+                .append(this.parameter).append(".cannot.also.be.provided.when.");
+        final StringBuilder defaultEnglishMessage = new StringBuilder("The parameter ").append(this.parameter)
+                .append(" cannot also be provided when ");
+        final ApiParameterError error = ApiParameterError.parameterError(validationErrorCode.toString(), defaultEnglishMessage.toString(),
+                this.parameter, this.value, this.parameter, value(this.parameter));
+        this.dataValidationErrors.add(error);
+        return this;
+    }
+    
+    
 
     public DataValidatorBuilder mustBeBlankWhenParameterProvidedIs(final String parameterName, final Object parameterValue) {
         if (this.value == null && this.ignoreNullValue) { return this; }
