@@ -508,6 +508,24 @@ public class AppUser extends AbstractPersistable<Long> implements PlatformUser {
         return !hasPermissionTo(permissionCode);
     }
 
+    public boolean hasPermission(final String permissionCode) {
+        boolean pesmission = false;
+     	 boolean hasPermission = hasAllFunctionsPermission();
+     	 if(hasPermission){
+     		 boolean match = false;
+        Set <Role> roles = this.getRoles();
+         for (final Role role : roles) {
+             if (role.hasPermissionTo(permissionCode)) {
+                 match = true;
+                 break;
+             }
+         }
+         pesmission = match;
+         }
+         return pesmission;
+     }
+
+    
     private boolean hasPermissionTo(final String permissionCode) {
         boolean hasPermission = hasAllFunctionsPermission();
         if (!hasPermission) {

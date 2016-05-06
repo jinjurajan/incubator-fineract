@@ -21,6 +21,7 @@ package org.apache.fineract.portfolio.loanaccount.service;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1183,7 +1184,15 @@ public class LoanApplicationWritePlatformServiceJpaRepositoryImpl implements Loa
 					                               .findOneByCodeName(FineractEntityAccessType.OFFICE_ACCESS_TO_LOAN_PRODUCTS.toStr());
 			FineractEntityToEntityMapping officeToLoanProductMappingList = this.repository.findListByProductId(fineractEntityRelation, productId,
 					officeId);
-			if (officeToLoanProductMappingList == null) {
+			boolean isOfficeAccessLoanProduct = false;
+			Collection<LoanProduct> accessAllowedtoAllOfficeproduct = this.loanProductRepository.retrieveAllOfficeAccessAllowedProducts();
+			for(LoanProduct officeSpecificLoanProduct : accessAllowedtoAllOfficeproduct){
+				if(productId.equals(officeSpecificLoanProduct.getId())){
+					isOfficeAccessLoanProduct = true;
+					break;
+				}
+			}
+			if (officeToLoanProductMappingList == null && isOfficeAccessLoanProduct) {
 				throw new NotOfficeSpecificProductException(productId, officeId);
 			}
 

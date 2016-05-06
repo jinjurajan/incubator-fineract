@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -162,7 +163,7 @@ public class LoanProductsApiResource {
     @GET
     @Consumes({ MediaType.APPLICATION_JSON })
     @Produces({ MediaType.APPLICATION_JSON })
-    public String retrieveAllLoanProducts(@Context final UriInfo uriInfo) {
+    public String retrieveAllLoanProducts(@Context final UriInfo uriInfo,@DefaultValue("false") @QueryParam("isEntityEntityMapping") final boolean isEntityEntityMapping) {
 
         this.context.authenticatedUser().validateHasReadPermission(this.resourceNameForPermissions);
         final Set<String> associationParameters = ApiParameterHelper.extractAssociationsForResponseIfProvided(uriInfo.getQueryParameters());
@@ -176,7 +177,7 @@ public class LoanProductsApiResource {
             }
         }
 
-        final Collection<LoanProductData> products = this.loanProductReadPlatformService.retrieveAllLoanProducts();
+        final Collection<LoanProductData> products = this.loanProductReadPlatformService.retrieveAllLoanProducts(isEntityEntityMapping);
 
         return this.toApiJsonSerializer.serialize(settings, products, this.LOAN_PRODUCT_DATA_PARAMETERS);
     }
@@ -301,13 +302,14 @@ public class LoanProductsApiResource {
         final List<EnumOptionData> preCloseInterestCalculationStrategyOptions = dropdownReadPlatformService
                 .retrivePreCloseInterestCalculationStrategyOptions();
         final List<FloatingRateData> floatingRateOptions = this.floatingRateReadPlatformService.retrieveLookupActive();
-
+        final boolean accessAllowedForAllOffices = productData.isAccessAllowedForAllOffices();
+        
         return new LoanProductData(productData, chargeOptions, penaltyOptions, paymentTypeOptions, currencyOptions,
                 amortizationTypeOptions, interestTypeOptions, interestCalculationPeriodTypeOptions, repaymentFrequencyTypeOptions,
                 interestRateFrequencyTypeOptions, fundOptions, transactionProcessingStrategyOptions, accountOptions,
                 accountingRuleTypeOptions, loanCycleValueConditionTypeOptions, daysInMonthTypeOptions, daysInYearTypeOptions,
                 interestRecalculationCompoundingTypeOptions, rescheduleStrategyTypeOptions, interestRecalculationFrequencyTypeOptions,
-                preCloseInterestCalculationStrategyOptions, floatingRateOptions);
+                preCloseInterestCalculationStrategyOptions, floatingRateOptions, accessAllowedForAllOffices);
     }
 
 }

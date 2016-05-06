@@ -1,0 +1,1 @@
+INSERT INTO `m_permission` (`grouping`, `code`, `can_maker_checker`) VALUES ('special', 'ACCESS_ALL_PRODUCTS', 0);

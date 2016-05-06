@@ -25,7 +25,7 @@ import org.apache.fineract.portfolio.loanproduct.data.LoanProductData;
 
 public interface LoanProductReadPlatformService {
 
-    Collection<LoanProductData> retrieveAllLoanProducts();
+    Collection<LoanProductData> retrieveAllLoanProducts(boolean isEntityEntityMapping);
 
     Collection<LoanProductData> retrieveAllLoanProductsForLookup(String inClass);
     

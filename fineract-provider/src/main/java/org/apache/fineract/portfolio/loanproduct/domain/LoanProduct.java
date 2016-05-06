@@ -182,6 +182,9 @@ public class LoanProduct extends AbstractPersistable<Long> {
     @LazyCollection(LazyCollectionOption.FALSE)
     @OneToOne(cascade = CascadeType.ALL, mappedBy = "loanProduct", optional = true, orphanRemoval = true)
     private LoanProductVariableInstallmentConfig variableInstallmentConfig;
+    
+    @Column(name = "access_allowed_for_all_offices")
+    private boolean accessAllowedForAllOffices;
 
     public static LoanProduct assembleFromJson(final Fund fund, final LoanTransactionProcessingStrategy loanTransactionProcessingStrategy,
             final List<Charge> productCharges, final JsonCommand command, final AprCalculator aprCalculator, FloatingRate floatingRate) {
@@ -324,6 +327,14 @@ public class LoanProduct extends AbstractPersistable<Long> {
         final boolean canDefineEmiAmount = command.booleanPrimitiveValueOfParameterNamed(LoanProductConstants.canDefineEmiAmountParamName);
         final Integer installmentAmountInMultiplesOf = command
                 .integerValueOfParameterNamed(LoanProductConstants.installmentAmountInMultiplesOfParamName);
+        
+        boolean accessAllowedForAllOffices = false;
+        if(!command.hasParameter("accessAllowedForAllOffices")){
+           accessAllowedForAllOffices = true;
+        }
+        else{
+        	accessAllowedForAllOffices = command.booleanObjectValueOfParameterNamed("accessAllowedForAllOffices");
+        }
 
         return new LoanProduct(fund, loanTransactionProcessingStrategy, name, shortName, description, currency, principal, minPrincipal,
                 maxPrincipal, interestRatePerPeriod, minInterestRatePerPeriod, maxInterestRatePerPeriod, interestFrequencyType,
@@ -338,7 +349,7 @@ public class LoanProduct extends AbstractPersistable<Long> {
                 installmentAmountInMultiplesOf, loanConfigurableAttributes, isLinkedToFloatingInterestRates, floatingRate,
                 interestRateDifferential, minDifferentialLendingRate, maxDifferentialLendingRate, defaultDifferentialLendingRate,
                 isFloatingInterestRateCalculationAllowed, isVariableInstallmentsAllowed, minimumGapBetweenInstallments,
-                maximumGapBetweenInstallments);
+                maximumGapBetweenInstallments,accessAllowedForAllOffices);
 
     }
 
@@ -569,7 +580,7 @@ public class LoanProduct extends AbstractPersistable<Long> {
             Boolean isLinkedToFloatingInterestRates, FloatingRate floatingRate, BigDecimal interestRateDifferential,
             BigDecimal minDifferentialLendingRate, BigDecimal maxDifferentialLendingRate, BigDecimal defaultDifferentialLendingRate,
             Boolean isFloatingInterestRateCalculationAllowed, final Boolean isVariableInstallmentsAllowed,
-            final Integer minimumGapBetweenInstallments, final Integer maximumGapBetweenInstallments) {
+            final Integer minimumGapBetweenInstallments, final Integer maximumGapBetweenInstallments,  final boolean accessAllowedForAllOffices) {
         this.fund = fund;
         this.transactionProcessingStrategy = transactionProcessingStrategy;
         this.name = name.trim();
@@ -643,6 +654,7 @@ public class LoanProduct extends AbstractPersistable<Long> {
         this.accountMovesOutOfNPAOnlyOnArrearsCompletion = accountMovesOutOfNPAOnlyOnArrearsCompletion;
         this.canDefineInstallmentAmount = canDefineEmiAmount;
         this.installmentAmountInMultiplesOf = installmentAmountInMultiplesOf;
+        this.accessAllowedForAllOffices =   accessAllowedForAllOffices;
     }
 
     public MonetaryCurrency getCurrency() {
@@ -1013,6 +1025,17 @@ public class LoanProduct extends AbstractPersistable<Long> {
             actualChanges.put(LoanProductConstants.installmentAmountInMultiplesOfParamName, newValue);
             actualChanges.put("locale", localeAsInput);
             this.installmentAmountInMultiplesOf = newValue;
+        }
+        
+        if(command.hasParameter("accessAllowedForAllOffices")){
+        	final boolean newValue = command.booleanPrimitiveValueOfParameterNamed("accessAllowedForAllOffices");
+        	actualChanges.put("accessAllowedForAllOffices", newValue);
+        	this.accessAllowedForAllOffices = newValue;
+        }
+        else{
+        	final boolean newValue = this.accessAllowedForAllOffices;
+        	actualChanges.put("accessAllowedForAllOffices", newValue);
+        	this.accessAllowedForAllOffices = newValue;
         }
 
         return actualChanges;

@@ -25,11 +25,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 import org.apache.fineract.accounting.common.AccountingEnumerations;
+import org.apache.fineract.infrastructure.configuration.domain.GlobalConfigurationProperty;
+import org.apache.fineract.infrastructure.configuration.domain.GlobalConfigurationRepositoryWrapper;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
 import org.apache.fineract.infrastructure.core.domain.JdbcSupport;
 import org.apache.fineract.infrastructure.core.service.DateUtils;
 import org.apache.fineract.infrastructure.core.service.RoutingDataSource;
+import org.apache.fineract.infrastructure.entityaccess.FineractEntityAccessConstants;
 import org.apache.fineract.infrastructure.entityaccess.domain.FineractEntityType;
+import org.apache.fineract.infrastructure.entityaccess.exception.FineractEntityMappingConfigurationException;
 import org.apache.fineract.infrastructure.entityaccess.service.FineractEntityAccessUtil;
 import org.apache.fineract.infrastructure.security.service.PlatformSecurityContext;
 import org.apache.fineract.organisation.monetary.data.CurrencyData;
@@ -57,15 +61,18 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
     private final JdbcTemplate jdbcTemplate;
     private final ChargeReadPlatformService chargeReadPlatformService;
     private final FineractEntityAccessUtil fineractEntityAccessUtil;
+    private final GlobalConfigurationRepositoryWrapper globalConfigurationRepository;
 
     @Autowired
     public LoanProductReadPlatformServiceImpl(final PlatformSecurityContext context,
             final ChargeReadPlatformService chargeReadPlatformService, final RoutingDataSource dataSource,
-            final FineractEntityAccessUtil fineractEntityAccessUtil) {
+            final FineractEntityAccessUtil fineractEntityAccessUtil,
+            final GlobalConfigurationRepositoryWrapper globalConfigurationRepository) {
         this.context = context;
         this.chargeReadPlatformService = chargeReadPlatformService;
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.fineractEntityAccessUtil = fineractEntityAccessUtil;
+        this.globalConfigurationRepository = globalConfigurationRepository;
     }
 
     @Override
@@ -92,7 +99,7 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
     }
 
     @Override
-    public Collection<LoanProductData> retrieveAllLoanProducts() {
+    public Collection<LoanProductData> retrieveAllLoanProducts(final boolean isEntityEntityMapping) {
 
         this.context.authenticatedUser();
 
@@ -102,12 +109,25 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
 
         // Check if branch specific products are enabled. If yes, fetch only
         // products mapped to current user's office
+        final GlobalConfigurationProperty property = this.globalConfigurationRepository
+        		.findOneByNameWithNotFoundDetection(
+        				FineractEntityAccessConstants.GLOBAL_CONFIG_FOR_OFFICE_SPECIFIC_PRODUCTS);
+        if(property.isEnabled() && !this.context.authenticatedUser().hasPermission("ACCESS_ALL_PRODUCTS")
+        		&& !isEntityEntityMapping){ 
         String inClause = fineractEntityAccessUtil
                 .getSQLWhereClauseForProductIDsForUserOffice_ifGlobalConfigEnabled(FineractEntityType.LOAN_PRODUCT);
+        String inClause2 = getSQLWhereClauseForAccessAllowedForAllOfficeProducts();
+        if(inClause.equals("false")){
+        	inClause=inClause2;
+        }
+        else if(( !(inClause.trim().isEmpty())) && !inClause2.equals("false") 
+        		&& ((!(inClause2.trim().isEmpty())))){
+        	inClause = inClause+","+inClause2;
+        }
         if ((inClause != null) && (!(inClause.trim().isEmpty()))) {
             sql += " where lp.id in ( " + inClause + " ) ";
         }
-
+        }
         return this.jdbcTemplate.query(sql, rm, new Object[] {});
     }
 
@@ -147,8 +167,17 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
 
         // Check if branch specific products are enabled. If yes, fetch only
         // products mapped to current user's office
+        if(!this.context.authenticatedUser().hasPermission("ACCESS_ALL_PRODUCTS")){
         String inClause = fineractEntityAccessUtil
                 .getSQLWhereClauseForProductIDsForUserOffice_ifGlobalConfigEnabled(FineractEntityType.LOAN_PRODUCT);
+        String inClause2 = getSQLWhereClauseForAccessAllowedForAllOfficeProducts();
+        if(inClause.equals("false")){
+        	inClause=inClause2;
+        }
+        else if(( !(inClause.trim().isEmpty())) && !inClause2.equals("false") 
+        		&& ((!(inClause2.trim().isEmpty())))){
+        	inClause = inClause+","+inClause2;
+        }
         if ((inClause != null) && (!(inClause.trim().isEmpty()))) {
             if (activeOnly) {
                 sql += " and id in ( " + inClause + " )";
@@ -156,7 +185,7 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
                 sql += " where id in ( " + inClause + " ) ";
             }
         }
-
+      }
         return this.jdbcTemplate.query(sql, rm, new Object[] {});
     }
 
@@ -215,6 +244,7 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
                     + "lfr.max_differential_lending_rate as maxDifferentialLendingRate, "
                     + "lfr.is_floating_interest_rate_calculation_allowed as isFloatingInterestRateCalculationAllowed, "
                     + "lp.allow_variabe_installments as isVariableIntallmentsAllowed, "
+                    + "lp.access_allowed_for_all_offices as accessAllowedForAllOffices, "
                     + "lvi.minimum_gap as minimumGap, "
                     + "lvi.maximum_gap as maximumGap "
                     + " from m_product_loan lp "
@@ -347,7 +377,8 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
             final Integer installmentAmountInMultiplesOf = JdbcSupport.getInteger(rs, "installmentAmountInMultiplesOf");
             final boolean canDefineInstallmentAmount = rs.getBoolean("canDefineInstallmentAmount");
             final boolean isInterestRecalculationEnabled = rs.getBoolean("isInterestRecalculationEnabled");
-
+            final boolean accessAllowedForAllOffices = rs.getBoolean("accessAllowedForAllOffices");
+            
             LoanProductInterestRecalculationData interestRecalculationData = null;
             if (isInterestRecalculationEnabled) {
 
@@ -423,7 +454,7 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
                     installmentAmountInMultiplesOf, allowAttributeOverrides, isLinkedToFloatingInterestRates, floatingRateId,
                     floatingRateName, interestRateDifferential, minDifferentialLendingRate, defaultDifferentialLendingRate,
                     maxDifferentialLendingRate, isFloatingInterestRateCalculationAllowed, isVariableIntallmentsAllowed, minimumGap,
-                    maximumGap);
+                    maximumGap, accessAllowedForAllOffices);
         }
     }
 
@@ -450,6 +481,11 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
             return "pm.product_id as id, lp.name as name from m_product_mix pm join m_product_loan lp on lp.id=pm.product_id";
         }
 
+        public String allOfficeAccessAllowedProductSchema(){
+        	return "select * from m_product_loan lp where lp.access_allowed_for_all_offices=1";
+        }
+
+        
         @Override
         public LoanProductData mapRow(final ResultSet rs, @SuppressWarnings("unused") final int rowNum) throws SQLException {
 
@@ -578,5 +614,46 @@ public class LoanProductReadPlatformServiceImpl implements LoanProductReadPlatfo
 
         return this.jdbcTemplate.query(sql, rm, new Object[] { productId, productId });
     }
+    public String getSQLWhereClauseForAccessAllowedForAllOfficeProducts(){
+ 	   Collection<LoanProductData> loanProducts = retrieveAllOfficeAccessAllowedProducts();
+ 	   String returnIdListStr = null;
+        StringBuffer accessListCSVStrBuf = null;
+     
+        if ((loanProducts != null) && (loanProducts.size() > 0)) {
+            for(LoanProductData accessData: loanProducts){
+            	if (accessData == null) {  
+                	throw new FineractEntityMappingConfigurationException();
+                }
+            	// If there is any ID that zero, then allow access to all
+ 				if (accessData.getId() == 0) {
+ 					accessListCSVStrBuf = null;
+ 					break;
+ 				}
+            	if(accessListCSVStrBuf == null){
+            		accessListCSVStrBuf = new StringBuffer() ;
+            	}else{
+            		accessListCSVStrBuf.append(",");
+            	}
+            	accessListCSVStrBuf.append(accessData.getId());
+            }
 
+        } else {
+        	accessListCSVStrBuf = new StringBuffer();
+            accessListCSVStrBuf.append("false"); // Append false so that no rows
+                                                 // will be returned
+        }
+        if (accessListCSVStrBuf != null) {
+            returnIdListStr = accessListCSVStrBuf.toString();
+        }
+        return returnIdListStr;
+ 	   
+    }
+    
+    public Collection<LoanProductData> retrieveAllOfficeAccessAllowedProducts(){
+    	this.context.authenticatedUser();
+    	final LoanProductLookupMapper rm = new LoanProductLookupMapper();
+    	String sql = rm.allOfficeAccessAllowedProductSchema();
+    	return this.jdbcTemplate.query(sql, rm, new Object[] { });
+    }
+    
 }
